@@ -1,0 +1,91 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides: snort, barnyard2
+# Required-Start: $local_fs $remote_fs $network $named $syslog $time
+# Required-Stop: $local_fs $remote_fs $network $named $syslog $time
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Core Services IRCD bot
+# Description: UAS IRC bot
+### END INIT INFO
+ 
+#The location of the IRC Bot binary e.g. /opt/uas/ircbotd.py
+IRC_BOTD="/opt/uas/Checkin/checkin.py"
+#Are there options/switches for the IRC bot? e.g. -D -l /var/log/irc_bot.log etc..
+OPTIONS="closing"
+#Path to the bot's PID file e.g. /path/to/bot.pid
+bot_pid=/opt/uas/Checkin/Checkin.pid
+ 
+do_start()
+{
+        if [ -f $bot_pid ]; then
+                espeak -v en "Checkin is already running."
+                echo "Checkin is already running, or it crashed and the pid file still exists! Try stop/restart, or removing the PID file first."
+        else
+                espeak -v en "Starting UAS Checkin."
+                echo "Starting UAS Checkin."
+                sudo nohup python $IRC_BOTD $OPTIONS &>> /opt/uas/Checkin/log &
+                #python $IRC_BOTD $OPTIONS > /dev/null &
+                if [ $? -eq 0 ]; then
+                        espeak -v en "UAS Checkin successfully started."
+                        echo "UAS Checkin successfully started."
+                        logger "UAS Checkin started."
+                else
+                        espeak -v en "UAS Checkin failed to start!"
+                        echo "UAS Checkin failed to start!"
+                fi
+        fi
+    return 0
+}
+ 
+do_status()
+{
+        if [ -f $bot_pid ]; then
+                echo "UAS Checkin is running with a pid of `cat $bot_pid`"
+        else
+                echo "UAS Checkin is not running, or has not generated a pid file."
+        fi
+        return 0
+}
+ 
+do_stop()
+{
+    echo "Stopping UAS IRC bot"
+        if [ -f $bot_pid ]; then
+                kill -6 `cat $bot_pid` 2> /dev/null
+                if [ $? -eq 0 ]; then
+                        espeak -v en "UAS Checkin stopped."
+                        echo "UAS Checkin stopped."
+                        logger "Gracefully killed UAS Checkin."
+                else
+                        espeak -v en "UAS Checkin could not be killed!"
+                        echo "UAS Checkin could not be killed! (Permissions? Already dead? Pid file missing?)"
+                fi
+        else
+                echo "UAS Checkin is not running, or has not generated a pid file."
+        fi
+    rm /opt/uas/Checkin/Checkin.pid
+    return 0
+}
+ 
+case "$1" in
+ start)
+    do_start
+    ;;
+ stop)
+    do_stop
+    ;;
+ restart)
+    do_stop
+    sleep 10
+    do_start
+    ;;
+ status)
+        do_status
+        ;;
+ *)
+    echo "Usage: Checkin {start|stop|restart|status}" >&2
+    exit 3
+    ;;
+esac
+exit 0
